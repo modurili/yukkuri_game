@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ゆっくり編集地獄</title>
+<meta name="description" content="制限時間90秒。ありふれた動画素材に字幕・カット・ズーム・効果音を付けて、お題どおりの動画に編集せよ。ブラウザで遊べる編集ゲーム。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ゆっくり編集地獄">
+<meta property="og:description" content="制限時間90秒。ありふれた動画素材を、お題どおりの動画に編集せよ。">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#15131f">
+<!-- 共有リンクの基準URLを固定したい場合に指定（空なら今開いているURLを使う） -->
+<meta name="yg-share-url" content="">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 44C4 20 18 8 32 8s28 12 26 36c-1 10-14 12-26 12S7 54 6 44z' fill='%23fff3dd' stroke='%232b2533' stroke-width='4'/%3E%3Cellipse cx='24' cy='32' rx='3' ry='5' fill='%232b2533'/%3E%3Cellipse cx='40' cy='32' rx='3' ry='5' fill='%232b2533'/%3E%3Cpath d='M12 14c8-8 30-8 40 0' stroke='%23ff4d6d' stroke-width='6' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">本文へスキップ</a>
+<div id="app">
+  <header class="topbar">
+    <button type="button" class="logo-mini" id="btn-home" aria-label="タイトルへ戻る"><span class="y">ゆっくり</span>編集<span class="j">地獄</span></button>
+    <div class="topbar-right">
+      <button type="button" class="tgl" id="btn-bgm" aria-pressed="true" title="BGMのオン/オフ">♪<span class="tgl-l">BGM</span></button>
+      <button type="button" class="tgl" id="btn-se" aria-pressed="true" title="効果音のオン/オフ">🔊<span class="tgl-l">効果音</span></button>
+      <button type="button" class="tgl" id="btn-voice" aria-pressed="false" title="書き出し動画の字幕を合成音声で読み上げる" hidden>🗣<span class="tgl-l">読み上げ</span></button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- タイトル -->
+    <section id="scr-title" class="screen is-active" aria-labelledby="logo">
+      <div class="title-wrap">
+        <h1 id="logo" class="logo">
+          <span class="logo-sub">制限時間90秒の動画編集ゲーム</span>
+          <span class="logo-main"><span class="y">ゆっくり</span><span class="w">編集</span><span class="j">地獄</span></span>
+        </h1>
+        <div class="title-talk">
+          <div class="talk-row"><canvas class="chara" data-who="mochi" data-mood="happy" width="96" height="96" aria-hidden="true"></canvas><p class="bubble"><b>もち監督</b>ありふれた素材でも、編集次第で神動画になるんだぜ！</p></div>
+          <div class="talk-row rev"><canvas class="chara" data-who="anko" data-mood="angry" width="96" height="96" aria-hidden="true"></canvas><p class="bubble"><b>あんこ</b>…でも締め切りは90秒よ。字幕の盛りすぎには注意ね！</p></div>
+        </div>
+        <button type="button" id="btn-start" class="btn btn-primary btn-xl">編集をはじめる ▶</button>
+        <details class="howto">
+          <summary>遊び方</summary>
+          <ol>
+            <li><b>お題</b>と<b>素材（6カット）</b>と<b>制約</b>が出ます。</li>
+            <li>タイムラインのカットを選んで、<b>字幕・演出・効果音・長さ</b>を付けたり、<b>カット</b>したり、<b>並べ替え</b>たりします。</li>
+            <li>制限時間内に「書き出す」。視聴者のコメント付きで動画が流れます。</li>
+            <li><b>編集技術・テンポ・ネタ</b>の3項目で採点。理由も全部見られます。</li>
+            <li>あえてひどい編集で<b>「地獄度」</b>を上げるのもアリ。称号を集めよう。</li>
+          </ol>
+          <p class="small">PCではキーボードでも操作できます：← → カット選択 ／ [ ] 並べ替え ／ 1〜4 タブ切替 ／ X カット ／ P 通し再生</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- お題選択 -->
+    <section id="scr-select" class="screen" aria-labelledby="sel-h">
+      <div class="sel-wrap">
+        <h2 id="sel-h" class="scr-h">お題を選べ</h2>
+        <label class="opt"><input type="checkbox" id="opt-timer" checked> 制限時間あり（90秒）<span class="small">※オフにすると練習モード（追加注文なし）</span></label>
+        <div id="theme-list" class="theme-list"></div>
+        <button type="button" id="btn-random" class="btn btn-ghost">🎲 おまかせで選ぶ</button>
+      </div>
+    </section>
+
+    <!-- ブリーフィング -->
+    <section id="scr-brief" class="screen" aria-labelledby="brief-title">
+      <div class="brief">
+        <p class="brief-no" id="brief-no"></p>
+        <h2 class="brief-title" id="brief-title"></h2>
+        <p class="brief-desc" id="brief-desc"></p>
+        <div class="brief-box">
+          <h3 id="brief-source"></h3>
+          <div class="shot-strip" id="brief-shots"></div>
+        </div>
+        <div class="brief-box">
+          <h3>編集の制約</h3>
+          <ul class="brief-cons" id="brief-cons"></ul>
+        </div>
+        <div class="talk-row"><canvas class="chara" data-who="mochi" data-mood="normal" width="80" height="80" aria-hidden="true"></canvas><p class="bubble"><b>もち監督</b><span id="brief-hint"></span></p></div>
+        <p class="brief-warn" id="brief-warn">⚠ 残り45秒になると、クライアントから<b>「追加注文」</b>が来ることがあるぞ。早く書き出せば回避できる…かも。</p>
+        <div class="brief-actions">
+          <button type="button" id="btn-go" class="btn btn-primary btn-xl">編集スタート ▶</button>
+          <button type="button" id="btn-back-select" class="btn btn-ghost">お題を選び直す</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 編集 -->
+    <section id="scr-edit" class="screen" aria-label="編集画面">
+      <div class="ed">
+        <div class="ed-head">
+          <div class="ed-theme"><span class="pill">お題</span><span id="ed-theme-text"></span></div>
+          <div class="ed-timer" id="ed-timer" role="timer" aria-label="残り時間">
+            <span class="ed-time" id="ed-time">1:30</span>
+            <div class="ed-timebar"><div id="ed-timebar-fill"></div></div>
+          </div>
+          <button type="button" id="btn-pause" class="btn btn-ghost btn-icon" aria-label="一時停止">⏸</button>
+          <button type="button" id="btn-export" class="btn btn-primary">書き出す ▶</button>
+        </div>
+
+        <div class="ed-preview">
+          <div class="stage"><canvas id="cv-preview" role="img" aria-label="プレビュー"></canvas><div class="stage-label" id="pv-label"></div></div>
+          <div class="pv-bar">
+            <button type="button" class="seg-btn" id="btn-pv-clip" aria-pressed="true">選択カットをループ</button>
+            <button type="button" class="seg-btn" id="btn-pv-all" aria-pressed="false">▶ 通しで再生</button>
+            <span class="pv-dur" id="pv-dur"></span>
+          </div>
+        </div>
+
+        <aside class="ed-cons" aria-labelledby="cons-h">
+          <h3 id="cons-h">制約チェック</h3>
+          <ul id="cons-list" class="cons-list"></ul>
+          <div id="order-box" class="order-box" hidden></div>
+          <p class="ed-hint" id="ed-hint"></p>
+        </aside>
+
+        <div class="ed-timeline" role="region" aria-label="タイムライン">
+          <div class="tl">
+            <div class="tl-labels" aria-hidden="true">
+              <div class="tl-l tl-l-r">時間</div><div class="tl-l tl-l-v">映像</div><div class="tl-l">字幕</div><div class="tl-l">演出</div><div class="tl-l">効果音</div>
+            </div>
+            <div class="tl-scroll" id="tl-scroll">
+              <div class="tl-cols" id="tl-cols"></div>
+              <div class="tl-playhead" id="tl-playhead" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ed-insp">
+          <div class="insp-head">
+            <span class="insp-no" id="insp-no"></span>
+            <div class="insp-name"><strong id="insp-name"></strong><span id="insp-desc"></span></div>
+            <div class="insp-tools">
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-left" aria-label="このカットを左へ移動">◀</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-right" aria-label="このカットを右へ移動">▶</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-cut" aria-pressed="false">✂ カット</button>
+            </div>
+          </div>
+          <div class="insp-tabs" role="tablist" aria-label="編集項目">
+            <button type="button" role="tab" id="tab-sub" data-tab="sub" aria-controls="insp-panel">💬 字幕</button>
+            <button type="button" role="tab" id="tab-fx" data-tab="fx" aria-controls="insp-panel">🎬 演出</button>
+            <button type="button" role="tab" id="tab-se" data-tab="se" aria-controls="insp-panel">🔊 効果音</button>
+            <button type="button" role="tab" id="tab-len" data-tab="len" aria-controls="insp-panel">⏱ 長さ</button>
+          </div>
+          <div class="insp-panel" id="insp-panel" role="tabpanel"></div>
+        </div>
+      </div>
+
+      <div class="overlay" id="pause-overlay" hidden>
+        <div class="overlay-card">
+          <h2>一時停止中</h2>
+          <p>編集画面は隠しています。</p>
+          <button type="button" id="btn-resume" class="btn btn-primary">再開する</button>
+          <button type="button" id="btn-quit" class="btn btn-ghost">お題選択に戻る</button>
+        </div>
+      </div>
+      <div class="order-pop" id="order-pop" hidden aria-hidden="true"><div class="order-pop-in"><span class="order-ring">📞</span><b>クライアントから追加注文！</b><span id="order-pop-text"></span></div></div>
+      <div class="deadline-pop" id="deadline-pop" hidden aria-hidden="true"><span>締め切り！！</span></div>
+    </section>
+
+    <!-- 書き出し再生 -->
+    <section id="scr-play" class="screen" aria-label="書き出した動画の再生">
+      <div class="play">
+        <div class="play-head"><span class="rec" id="play-rec">● 書き出し中</span><span class="play-title" id="play-title"></span><span class="play-time" id="play-time"></span></div>
+        <div class="stage stage-play">
+          <canvas id="cv-play" role="img" aria-label="書き出した動画"></canvas>
+          <div class="danmaku" id="danmaku" aria-hidden="true"></div>
+          <div class="play-overlay" id="play-overlay"></div>
+        </div>
+        <div class="play-bar"><div id="play-progress"></div></div>
+        <div class="play-foot">
+          <span class="play-views" id="play-views" aria-live="off"></span>
+          <button type="button" id="btn-skip" class="btn btn-ghost">結果へスキップ ⏭</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 結果 -->
+    <section id="scr-result" class="screen" aria-labelledby="res-title">
+      <div class="res">
+        <div class="res-shared-note" id="res-shared-note" hidden></div>
+        <div class="res-hero">
+          <div class="res-score">
+            <div class="res-rank" id="res-rank" aria-label="ランク"></div>
+            <div class="res-total"><span id="res-total">0</span><small>点</small></div>
+            <div class="res-ranklabel" id="res-ranklabel"></div>
+          </div>
+          <div class="res-titlebox">
+            <div class="res-title-label">称号</div><span class="res-title-new" id="res-title-new" hidden>NEW!</span>
+            <h2 class="res-title" id="res-title"></h2>
+            <p class="res-title-desc" id="res-title-desc"></p>
+            <div class="res-badges" id="res-badges"></div>
+            <div class="res-best" id="res-best" hidden>🏆 自己ベスト更新！</div>
+          </div>
+        </div>
+
+        <div class="res-meters" id="res-meters"></div>
+
+        <div class="res-talk" id="res-talk"></div>
+
+        <div class="res-actions">
+          <button type="button" id="btn-retry" class="btn btn-primary btn-lg">もう一度（同じお題）</button>
+          <button type="button" id="btn-other" class="btn btn-ghost btn-lg">別のお題</button>
+          <button type="button" id="btn-replay" class="btn btn-ghost btn-lg">▶ 動画をもう一度見る</button>
+        </div>
+
+        <div class="res-share">
+          <h3>結果をシェア</h3>
+          <div class="res-image-wrap"><img id="res-image" alt="結果画像"></div>
+          <label class="name-field">画像に入れるチャンネル名（任意）<input id="inp-name" type="text" maxlength="20" autocomplete="nickname" placeholder="例：ゆっくり〇〇ch"></label>
+          <div class="share-btns">
+            <button type="button" id="btn-x" class="btn btn-x">𝕏 でポスト</button>
+            <button type="button" id="btn-save" class="btn btn-ghost">⬇ 画像を保存</button>
+            <button type="button" id="btn-share-img" class="btn btn-ghost" hidden>📤 画像を共有</button>
+            <button type="button" id="btn-copy" class="btn btn-ghost">🔗 再現リンクをコピー</button>
+          </div>
+          <p class="small">ポストには「再現リンク」が付きます。開くと同じお題・同じ編集が再生され、そのまま挑戦できます。保存した画像を添付すると伝わりやすいよ。</p>
+        </div>
+
+        <div class="res-detail">
+          <h3>採点の内訳</h3>
+          <div class="res-combos" id="res-combos"></div>
+          <div class="dex" id="res-dex"></div>
+          <div class="reason-cols" id="reason-cols"></div>
+          <div class="hell-detail" id="hell-detail"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 共有リンクから来た人向け -->
+    <section id="scr-shared" class="screen" aria-labelledby="shared-theme">
+      <div class="shared">
+        <p class="shared-kicker">🎬 編集済みの動画が届きました</p>
+        <h2 id="shared-theme" class="brief-title"></h2>
+        <p id="shared-by" class="shared-by"></p>
+        <canvas id="cv-shared" class="shared-thumb" width="640" height="360" role="img" aria-label="編集結果のサムネイル"></canvas>
+        <button type="button" id="btn-shared-play" class="btn btn-primary btn-xl">▶ 再生して採点を見る</button>
+        <button type="button" id="btn-shared-try" class="btn btn-ghost btn-lg">このお題に自分で挑戦する</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="sr-live" class="sr-only" aria-live="assertive"></div>
+  <div class="overlay" id="img-modal" hidden>
+    <div class="overlay-card">
+      <p>画像を長押しして保存してください</p>
+      <img id="img-modal-img" alt="結果画像" class="modal-img">
+      <button type="button" class="btn btn-primary" id="btn-img-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/codec.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/render.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/share.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
