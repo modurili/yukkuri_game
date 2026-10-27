@@ -5,7 +5,7 @@
 
   var A = {
     ctx: null, master: null, seBus: null, bgmBus: null, noiseBuf: null,
-    seOn: true, bgmOn: true,
+    seOn: true, bgmOn: true, vol: 1, analyser: null, meterBuf: null, meterVal: 0,
     bgm: { name: null, timer: null, step: 0, next: 0, bpm: 120, pat: null }
   };
 
@@ -15,9 +15,12 @@
     if (!AC) return false;
     try { A.ctx = new AC(); } catch (e) { return false; }
     var c = A.ctx;
-    A.master = c.createGain(); A.master.gain.value = 0.8;
+    A.master = c.createGain(); A.master.gain.value = 0.8 * A.vol;
     var comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
     A.master.connect(comp); comp.connect(c.destination);
+    // レベルメーター用に出力を分岐して測る
+    A.analyser = c.createAnalyser(); A.analyser.fftSize = 512; comp.connect(A.analyser);
+    A.meterBuf = new Float32Array(A.analyser.fftSize);
     A.seBus = c.createGain(); A.seBus.gain.value = A.seOn ? 1 : 0; A.seBus.connect(A.master);
     A.bgmBus = c.createGain(); A.bgmBus.gain.value = A.bgmOn ? 0.55 : 0; A.bgmBus.connect(A.master);
     var len = c.sampleRate * 2, buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
@@ -25,6 +28,18 @@
     A.noiseBuf = buf;
     if (c.state === 'suspended') c.resume();
     return true;
+  };
+  A.setVolume = function (v) { A.vol = Math.max(0, Math.min(1, v)); if (A.master) A.master.gain.value = 0.8 * A.vol; };
+  // 出力レベル 0..1（-50dB〜0dB）。メーターがなめらかに落ちるよう減衰させる
+  A.level = function () {
+    if (!A.analyser) return 0;
+    A.analyser.getFloatTimeDomainData(A.meterBuf);
+    var sum = 0;
+    for (var i = 0; i < A.meterBuf.length; i++) sum += A.meterBuf[i] * A.meterBuf[i];
+    var db = 20 * Math.log10(Math.sqrt(sum / A.meterBuf.length) + 1e-9);
+    var v = Math.max(0, Math.min(1, (db + 50) / 50));
+    A.meterVal = v > A.meterVal ? v : A.meterVal * 0.9;
+    return A.meterVal;
   };
   A.setSe = function (on) { A.seOn = on; if (A.seBus) A.seBus.gain.value = on ? 1 : 0; };
   A.setBgm = function (on) { A.bgmOn = on; if (A.bgmBus) A.bgmBus.gain.value = on ? 0.55 : 0; };

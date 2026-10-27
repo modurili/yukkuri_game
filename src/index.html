@@ -92,65 +92,93 @@
       </div>
     </section>
 
-    <!-- 編集 -->
-    <section id="scr-edit" class="screen" aria-label="編集画面">
-      <div class="ed">
-        <div class="ed-head">
-          <div class="ed-theme"><span class="pill">お題</span><span id="ed-theme-text"></span></div>
-          <div class="ed-timer" id="ed-timer" role="timer" aria-label="残り時間">
-            <span class="ed-time" id="ed-time">1:30</span>
-            <div class="ed-timebar"><div id="ed-timebar-fill"></div></div>
-          </div>
-          <button type="button" id="btn-pause" class="btn btn-ghost btn-icon" aria-label="一時停止">⏸</button>
-          <button type="button" id="btn-export" class="btn btn-primary">書き出す ▶</button>
-        </div>
-
-        <div class="ed-preview">
-          <div class="stage"><canvas id="cv-preview" role="img" aria-label="プレビュー"></canvas><div class="stage-label" id="pv-label"></div></div>
-          <div class="pv-bar">
-            <button type="button" class="seg-btn" id="btn-pv-clip" aria-pressed="true">選択カットをループ</button>
-            <button type="button" class="seg-btn" id="btn-pv-all" aria-pressed="false">▶ 通しで再生</button>
-            <span class="pv-dur" id="pv-dur"></span>
-          </div>
-        </div>
-
-        <aside class="ed-cons" aria-labelledby="cons-h">
-          <h3 id="cons-h">制約チェック</h3>
-          <ul id="cons-list" class="cons-list"></ul>
-          <div id="order-box" class="order-box" hidden></div>
-          <p class="ed-hint" id="ed-hint"></p>
-        </aside>
-
-        <div class="ed-timeline" role="region" aria-label="タイムライン">
-          <div class="tl">
-            <div class="tl-labels" aria-hidden="true">
-              <div class="tl-l tl-l-r">時間</div><div class="tl-l tl-l-v">映像</div><div class="tl-l">字幕</div><div class="tl-l">演出</div><div class="tl-l">効果音</div>
+    <!-- 編集（動画編集ソフト風の画面：プレビュー／アイテム／タイムライン／セリフ入力／ステータスバー） -->
+    <section id="scr-edit" class="screen ym-screen" aria-label="編集画面">
+      <div class="ym">
+        <div class="ym-titlebar">
+          <span class="ym-appicon" aria-hidden="true"></span>
+          <span class="ym-apptitle"><span>ゆっくり編集地獄 v1.0</span> <span class="ym-sep">-</span> <span id="ed-theme-text"></span></span>
+          <div class="ym-title-right">
+            <div class="ed-timer" id="ed-timer" role="timer" aria-label="締め切りまでの残り時間">
+              <span class="ed-timer-l">締め切りまで</span><span class="ed-time" id="ed-time">1:30</span>
+              <div class="ed-timebar"><div id="ed-timebar-fill"></div></div>
             </div>
-            <div class="tl-scroll" id="tl-scroll">
-              <div class="tl-cols" id="tl-cols"></div>
-              <div class="tl-playhead" id="tl-playhead" aria-hidden="true"></div>
-            </div>
+            <button type="button" id="btn-pause" class="ym-tbtn" aria-label="一時停止">⏸</button>
+            <button type="button" id="btn-export" class="ym-export">動画出力 ▶</button>
           </div>
         </div>
+        <nav class="ym-menubar" id="ym-menubar" aria-label="メニュー">
+          <div class="ym-menu"><button type="button" class="ym-menu-btn" data-menu="file" aria-haspopup="true" aria-expanded="false">ファイル(<u>F</u>)</button></div>
+          <div class="ym-menu"><button type="button" class="ym-menu-btn" data-menu="edit" aria-haspopup="true" aria-expanded="false">編集(<u>E</u>)</button></div>
+          <div class="ym-menu"><button type="button" class="ym-menu-btn" data-menu="layout" aria-haspopup="true" aria-expanded="false">レイアウト(<u>L</u>)</button></div>
+          <div class="ym-menu"><button type="button" class="ym-menu-btn" data-menu="tool" aria-haspopup="true" aria-expanded="false">ツール(<u>T</u>)</button></div>
+          <div class="ym-menu"><button type="button" class="ym-menu-btn" data-menu="help" aria-haspopup="true" aria-expanded="false">ヘルプ(<u>H</u>)</button></div>
+          <div class="ym-menu-pop" id="ym-menu-pop" role="menu" hidden></div>
+        </nav>
 
-        <div class="ed-insp">
-          <div class="insp-head">
-            <span class="insp-no" id="insp-no"></span>
-            <div class="insp-name"><strong id="insp-name"></strong><span id="insp-desc"></span></div>
-            <div class="insp-tools">
-              <button type="button" class="btn btn-ghost btn-sm" id="btn-left" aria-label="このカットを左へ移動">◀</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btn-right" aria-label="このカットを右へ移動">▶</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="btn-cut" aria-pressed="false">✂ カット</button>
+        <div class="ym-body">
+          <div class="ym-pane ym-preview-pane">
+            <div class="ym-pane-h">プレビュー</div>
+            <div class="ym-stage-wrap">
+              <div class="stage"><canvas id="cv-preview" role="img" aria-label="プレビュー"></canvas><div class="stage-label" id="pv-label"></div></div>
+            </div>
+            <div class="ym-playbar">
+              <button type="button" class="ym-ibtn" id="btn-pv-all" aria-label="通しで再生" title="再生（P）">▶</button>
+              <button type="button" class="ym-ibtn" id="btn-pv-clip" aria-label="停止して選択アイテムをループ" title="停止">■</button>
+              <select id="pv-speed" class="ym-select" aria-label="再生速度"><option value="0.5">×0.5</option><option value="1" selected>×1.0</option><option value="2">×2.0</option></select>
+              <span class="ym-vsep" aria-hidden="true"></span>
+              <input type="range" id="pv-seek" class="ym-range ym-seek" min="0" max="1000" value="0" step="1" aria-label="再生位置">
+              <span class="ym-vol-i" aria-hidden="true">🔈</span>
+              <span class="ym-vol-v" id="vol-v">100.0 %</span>
+              <input type="range" id="vol" class="ym-range ym-vol" min="0" max="100" value="100" step="1" aria-label="音量">
             </div>
           </div>
-          <div class="insp-tabs" role="tablist" aria-label="編集項目">
-            <button type="button" role="tab" id="tab-sub" data-tab="sub" aria-controls="insp-panel">💬 字幕</button>
-            <button type="button" role="tab" id="tab-fx" data-tab="fx" aria-controls="insp-panel">🎬 演出</button>
-            <button type="button" role="tab" id="tab-se" data-tab="se" aria-controls="insp-panel">🔊 効果音</button>
-            <button type="button" role="tab" id="tab-len" data-tab="len" aria-controls="insp-panel">⏱ 長さ</button>
+
+          <div class="ym-pane ym-item-pane">
+            <div class="ym-pane-h">アイテム</div>
+            <div class="ym-props" id="ym-props">
+              <section class="ym-grp" id="grp-cons">
+                <h3 class="ym-grp-h"><button type="button" class="ym-grp-t" aria-expanded="true" data-grp="cons">お題・制約</button></h3>
+                <div class="ym-grp-b">
+                  <ul id="cons-list" class="cons-list"></ul>
+                  <div id="order-box" class="order-box" hidden></div>
+                  <p class="ed-hint" id="ed-hint"></p>
+                </div>
+              </section>
+              <div id="insp-panel"></div>
+            </div>
           </div>
-          <div class="insp-panel" id="insp-panel" role="tabpanel"></div>
+
+          <div class="ym-pane ym-tl-pane" role="region" aria-label="タイムライン">
+            <div class="ym-tabs"><span class="ym-tab is-on">メイン</span></div>
+            <div class="ym-tltools">
+              <span class="ym-zoom-i" aria-hidden="true">🔍</span><span class="ym-zoom-v" id="tl-zoom-v">100.0</span>
+              <button type="button" class="ym-ibtn" id="btn-zoom-out" aria-label="タイムラインを縮小" title="縮小">－</button>
+              <button type="button" class="ym-ibtn" id="btn-zoom-in" aria-label="タイムラインを拡大" title="拡大">＋</button>
+              <span class="ym-vsep" aria-hidden="true"></span>
+              <button type="button" class="ym-ibtn" id="btn-left" aria-label="選択アイテムを前へ移動" title="前へ移動（[）">⇤</button>
+              <button type="button" class="ym-ibtn" id="btn-right" aria-label="選択アイテムを後ろへ移動" title="後ろへ移動（]）">⇥</button>
+              <button type="button" class="ym-ibtn ym-wide" id="btn-cut" aria-pressed="false" title="非表示（カット）にする（X）">✂ カット</button>
+              <span class="ym-vsep" aria-hidden="true"></span>
+              <span class="pv-dur" id="pv-dur"></span>
+            </div>
+            <div class="ym-tl">
+              <div class="ym-meter" aria-hidden="true"><div class="ym-meter-scale"><span>0</span><span>-10</span><span>-20</span><span>-30</span><span>-40</span><span>-50</span></div><div class="ym-meter-bar"><i id="meter-l"></i></div><div class="ym-meter-bar"><i id="meter-r"></i></div></div>
+              <div class="ym-layers" id="ym-layers" aria-hidden="true"></div>
+              <div class="ym-tl-scroll" id="tl-scroll">
+                <div class="ym-ruler" id="tl-ruler"></div>
+                <div class="ym-rows" id="tl-cols"></div>
+                <div class="tl-playhead" id="tl-playhead" aria-hidden="true"></div>
+              </div>
+            </div>
+            <div class="ym-serif">
+              <select id="serif-preset" class="ym-select" aria-label="用意された字幕から選ぶ"></select>
+              <input type="text" id="serif-input" class="ym-input" maxlength="30" placeholder="ここにセリフを入力" aria-label="選択中のカットに付ける字幕">
+              <button type="button" id="serif-add" class="ym-btn">追加</button>
+            </div>
+          </div>
         </div>
+        <div class="ym-status" id="ym-status" aria-live="off"></div>
       </div>
 
       <div class="overlay" id="pause-overlay" hidden>
@@ -249,6 +277,20 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <div id="sr-live" class="sr-only" aria-live="assertive"></div>
+  <div class="overlay" id="help-modal" hidden>
+    <div class="overlay-card ym-help">
+      <h2>操作方法</h2>
+      <ul>
+        <li>タイムラインのアイテム（または空いている行）をクリックすると、そのカットを選択</li>
+        <li>右の「アイテム」で字幕・映像エフェクト・効果音・長さ・非表示（カット）を設定</li>
+        <li>下の「ここにセリフを入力」に書いて Enter（または「追加」）で、選択中のカットに字幕。次のカットへ進む</li>
+        <li>▶ で通し再生、■ で停止。再生位置スライダーやルーラーのクリックで好きな時刻へ</li>
+        <li>キーボード：← → 選択／[ ] 並べ替え／1〜4 項目へ移動／X カット／P 再生／Esc 一時停止</li>
+        <li>締め切りまでに「動画出力」。時間切れだと強制出力されます</li>
+      </ul>
+      <button type="button" class="btn btn-primary" id="btn-help-close">閉じる</button>
+    </div>
+  </div>
   <div class="overlay" id="copy-modal" hidden>
     <div class="overlay-card">
       <p>自動でコピーできなかったので、下の文字を選んでコピーしてください</p>
