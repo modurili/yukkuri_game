@@ -273,6 +273,7 @@ button { cursor: pointer; }
 .overlay-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; text-align: center; display: grid; gap: 10px; max-width: 520px; width: 100%; }
 .overlay-card h2 { margin: 0; }
 .modal-img { width: 100%; border-radius: 8px; }
+.copy-text { width: 100%; background: #120f1e; color: var(--text); border: 2px solid var(--line); border-radius: 10px; padding: 8px; font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all; resize: none; }
 .order-pop, .deadline-pop { position: fixed; inset: 0; z-index: 55; display: grid; place-items: center; pointer-events: none; }
 .order-pop-in { background: #fff; color: #2b2533; border: 4px solid var(--hell); border-radius: 18px; padding: 16px 22px; display: grid; gap: 4px; text-align: center; font-size: 15px; box-shadow: 0 12px 40px rgba(0,0,0,.6); animation: popin .45s cubic-bezier(.2, 1.6, .4, 1); max-width: 90vw; }
 .order-pop-in b { font-size: 20px; color: #c2410c; }

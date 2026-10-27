@@ -6,6 +6,8 @@
   var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var store = {
+    // 埋め込み表示などで保存領域が使えない環境もある。その場合は記録せずに遊べるようにする
+    ok: (function () { try { localStorage.setItem('yg__t', '1'); localStorage.removeItem('yg__t'); return true; } catch (e) { return false; } })(),
     get: function (k, d) { try { var v = localStorage.getItem('yg_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem('yg_' + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても遊べる */ } }
   };
@@ -604,7 +606,7 @@
 
     // 自己ベスト
     var bestEl = $('res-best'); bestEl.hidden = true;
-    if (!shared) {
+    if (!shared && store.ok) {
       var best = store.get('best', {});
       var prev = best[th.id];
       if (!prev || res.total > prev.total) {
@@ -616,7 +618,7 @@
 
     // 図鑑（コンボと称号の発見記録）
     var newCombos = [], newTitle = false;
-    if (!shared) {
+    if (!shared && store.ok) {
       var dex = store.get('combos', {}), got = dex[th.id] || [];
       res.specials.forEach(function (sp) { if (got.indexOf(sp.id) < 0) { got.push(sp.id); newCombos.push(sp.id); } });
       dex[th.id] = got; store.set('combos', dex);
@@ -670,7 +672,7 @@
       cmb.appendChild(el('div', { class: 'combo' }, [el('b', {}, ['★ ' + sp.name, newCombos.indexOf(sp.id) >= 0 ? el('em', { class: 'new', text: 'NEW' }) : null]), el('span', { text: sp.desc })]));
     });
     else cmb.appendChild(el('div', { class: 'combo none', text: '★コンボは見つからなかった。素材×字幕×演出の組み合わせを探そう' }));
-    renderDex(th);
+    renderDex(th, shared ? [] : res.specials.map(function (sp) { return sp.id; }));
     var cols = $('reason-cols'); clear(cols);
     AXES.forEach(function (a) {
       var items = res.reasons.filter(function (r) { return r.axis === a[0]; });
@@ -691,6 +693,11 @@
     hd.textContent = res.hellParts.length ? '🔥 地獄度の内訳：' + res.hellParts.map(function (p) { return p.text + '(+' + p.pts + ')'; }).join('、') + '　※地獄度は総合点には入らず、再生数（炎上）に影響します' : '🔥 地獄度 0：とても健全な編集です。';
 
     $('inp-name').value = S.name;
+    var hasLink = !!shareLink();
+    $('btn-copy').textContent = hasLink ? '🔗 再現リンクをコピー' : '🔑 再現コードをコピー';
+    $('share-note').textContent = hasLink
+      ? 'ポストには「再現リンク」が付きます。開くと同じお題・同じ編集が再生され、そのまま挑戦できます。保存した画像を添付すると伝わりやすいよ。'
+      : 'いまは公開URLのない環境（ファイルを直接開いている等）なので、ポストにリンクは付きません。「再現コード」を送れば、相手はタイトル画面の「再現コードで再生」から同じ編集を見られます。';
     $('btn-share-img').hidden = !canShareFiles();
     setTimeout(makeImage, 60);
     announce('結果：' + res.total + '点、ランク' + res.rank + '、称号「' + res.title.name + '」');
@@ -703,9 +710,10 @@
     return { got: comboList(th).filter(function (sp) { return got.indexOf(sp.id) >= 0; }).length, all: comboList(th).length };
   }
   // 見つけたコンボは名前、未発見はぼかしたヒントだけ見せる
-  function renderDex(th) {
+  function renderDex(th, now) {
     var box = $('res-dex'); clear(box);
-    var got = store.get('combos', {})[th.id] || [], cc = comboCount(th);
+    var got = (store.get('combos', {})[th.id] || []).concat(now || []);
+    var cc = { got: comboList(th).filter(function (sp) { return got.indexOf(sp.id) >= 0; }).length, all: comboList(th).length };
     box.appendChild(el('h4', {}, [el('span', { text: '📖 コンボ図鑑（このお題）' }), el('span', { text: cc.got + ' / ' + cc.all })]));
     var ul = el('ul', { class: 'dex-list' });
     comboList(th).forEach(function (sp) {
@@ -714,7 +722,7 @@
     });
     box.appendChild(ul);
     var tids = store.get('titles', []);
-    box.appendChild(el('p', { class: 'small', text: '🏅 これまでに獲得した称号：' + tids.length + ' / ' + (D.TITLES.length - 1 + D.THEMES.length) }));
+    box.appendChild(el('p', { class: 'small', text: store.ok ? '🏅 これまでに獲得した称号：' + tids.length + ' / ' + (D.TITLES.length - 1 + D.THEMES.length) : '※この環境ではブラウザに記録を保存できないため、図鑑・自己ベストは今回の結果だけ表示しています' }));
   }
 
   function currentEdit() { return S.mode === 'shared' ? S.shared.edit : S.lastEdit; }
@@ -725,7 +733,10 @@
     try { $('res-image').src = cv.toDataURL('image/png'); } catch (e) { /* 何もしない */ }
     $('res-image').alt = '結果画像：' + S.theme.short + '、' + S.result.total + '点、称号「' + S.result.title.name + '」';
   }
-  function shareLink() { return Sh.shareUrl(currentEdit(), S.mode === 'shared' ? S.shared.name : S.name); }
+  function shareName() { return S.mode === 'shared' ? S.shared.name : S.name; }
+  // 公開URLで開いているときは再現リンク、ファイルを直接開いているときなどは null（代わりに再現コードを使う）
+  function shareLink() { return Sh.shareUrl(currentEdit(), shareName()); }
+  function shareCode() { return Codec.encode(currentEdit(), shareName()); }
   function canShareFiles() {
     try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File([new Blob(['x'])], 'x.png', { type: 'image/png' })] })); } catch (e) { return false; }
   }
@@ -750,7 +761,8 @@
     Sh.canvasToBlob(S.resultCanvas).then(function (blob) {
       if (!blob) return;
       var file = new File([blob], Sh.fileName(), { type: 'image/png' });
-      navigator.share({ files: [file], text: Sh.postText(S.theme, S.result) + '\n' + shareLink() }).catch(function () { /* キャンセル */ });
+      var link = shareLink();
+      navigator.share({ files: [file], text: Sh.postText(S.theme, S.result) + '\n' + (link || '再現コード：' + shareCode()) }).catch(function () { /* キャンセル */ });
     });
   }
   function postToX() {
@@ -758,17 +770,27 @@
     var a = el('a', { href: Sh.intentUrl(Sh.postText(S.theme, S.result), shareLink()), target: '_blank', rel: 'noopener noreferrer' });
     document.body.appendChild(a); a.click(); a.remove();
   }
-  function copyLink() {
+  function copyShare() {
     var link = shareLink();
-    var done = function () { toast('再現リンクをコピーしました'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, function () { fallbackCopy(link); });
-    else fallbackCopy(link);
+    if (link) copyText(link, '再現リンクをコピーしました');
+    else copyText(shareCode(), '再現コードをコピーしました。タイトル画面の「再現コードで再生」に貼り付けると同じ編集が見られます');
   }
-  function fallbackCopy(text) {
+  function copyText(text, msg) {
+    var done = function () { toast(msg, 3200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    else fallbackCopy(text, done);
+  }
+  // クリップボードが使えない環境（埋め込み表示など）では、選択済みのテキストを見せて手でコピーしてもらう
+  function fallbackCopy(text, done) {
     var ta = el('textarea', { style: 'position:fixed;left:-9999px' }); ta.value = text;
     document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); toast('再現リンクをコピーしました'); } catch (e) { window.prompt('このリンクをコピーしてください', text); }
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     ta.remove();
+    if (ok) { done(); return; }
+    $('copy-modal-text').value = text;
+    $('copy-modal').hidden = false;
+    $('copy-modal-text').focus(); $('copy-modal-text').select();
   }
 
   // ---------- 共有リンクから来た場合 ----------
@@ -777,7 +799,7 @@
   }
   function openShared(code) {
     var d = Codec.decode(code);
-    if (!d) { toast('リンクが壊れているみたい…タイトルから遊んでね', 3500); return false; }
+    if (!d) { toast('再現コード（リンク）が壊れているみたい…タイトルから遊んでね', 3500); return false; }
     S.mode = 'shared';
     S.theme = D.getTheme(d.edit.themeId);
     S.shared = d;
@@ -902,7 +924,16 @@
     $('btn-x').addEventListener('click', postToX);
     $('btn-save').addEventListener('click', saveImage);
     $('btn-share-img').addEventListener('click', shareImage);
-    $('btn-copy').addEventListener('click', copyLink);
+    $('btn-copy').addEventListener('click', copyShare);
+    $('btn-copy-close').addEventListener('click', function () { $('copy-modal').hidden = true; });
+    var playCode = function () {
+      var code = Sh.parseCode($('inp-code').value);
+      if (!code) { toast('再現コードが読み取れませんでした', 2800); return; }
+      ensureAudio();
+      if (openShared(code)) $('inp-code').value = '';
+    };
+    $('btn-code').addEventListener('click', playCode);
+    $('inp-code').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); playCode(); } });
     $('btn-img-close').addEventListener('click', function () { $('img-modal').hidden = true; });
     var nameTimer = null;
     $('inp-name').addEventListener('input', function (e) {

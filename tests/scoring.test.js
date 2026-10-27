@@ -1,9 +1,9 @@
 // 採点エンジン・URLコーデックのテスト（node --test tests/）
 const test = require('node:test');
 const assert = require('node:assert/strict');
-require('../js/data.js');
-require('../js/scoring.js');
-require('../js/codec.js');
+require('../src/js/data.js');
+require('../src/js/scoring.js');
+require('../src/js/codec.js');
 const { DATA: D, Score: S, Codec } = globalThis.YG;
 
 function edit(themeId, clips, extra) {

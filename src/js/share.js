@@ -24,16 +24,28 @@
     return a.join('') + '…';
   }
 
+  // 共有リンクの基準URL。公開URLがない（ファイルを直接開いている、埋め込み表示など）ときは null
   function shareBase() {
     var meta = document.querySelector('meta[name="yg-share-url"]');
-    if (meta && meta.content) return meta.content;
-    return location.origin + location.pathname;
+    if (meta && /^https?:\/\//.test(meta.content)) return meta.content;
+    if (/^https?:$/.test(location.protocol) && location.origin && location.origin !== 'null') return location.origin + location.pathname;
+    return null;
   }
   function shareUrl(edit, name) {
-    return shareBase() + '?r=' + YG.Codec.encode(edit, name);
+    var base = shareBase();
+    return base ? base + '?r=' + YG.Codec.encode(edit, name) : null;
+  }
+  // 再現リンクの URL でも、再現コードそのものでも受け付ける
+  function parseCode(text) {
+    var t = String(text || '').trim();
+    var m = /[?&#]r=([A-Za-z0-9_-]+)/.exec(t);
+    if (m) return m[1];
+    return /^[A-Za-z0-9_-]{8,}$/.test(t) ? t : null;
   }
   function displayHost() {
-    try { var u = new URL(shareBase()); return (u.host + u.pathname).replace(/\/$/, '').replace(/\/index\.html$/, ''); } catch (e) { return ''; }
+    var base = shareBase();
+    if (!base) return '';
+    try { var u = new URL(base); return (u.host + u.pathname).replace(/\/$/, '').replace(/\/index\.html$/, ''); } catch (e) { return ''; }
   }
 
   // ---- 結果画像（投稿画像だけで内容が伝わる構成） ----
@@ -196,7 +208,7 @@
       '#' + HASHTAG;
   }
   function intentUrl(text, url) {
-    return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent(url);
+    return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + (url ? '&url=' + encodeURIComponent(url) : '');
   }
 
   function canvasToBlob(cv) {
@@ -211,7 +223,7 @@
   }
 
   YG.Share = {
-    makeResultImage: makeResultImage, shareUrl: shareUrl, postText: postText, intentUrl: intentUrl,
+    makeResultImage: makeResultImage, shareUrl: shareUrl, parseCode: parseCode, postText: postText, intentUrl: intentUrl,
     canvasToBlob: canvasToBlob, fileName: fileName, fmtTime: fmtTime, IW: IW, IH: IH
   };
 })(typeof window !== 'undefined' ? window : globalThis);

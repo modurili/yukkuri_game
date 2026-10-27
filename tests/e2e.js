@@ -1,5 +1,8 @@
-// ブラウザで1プレイを最後まで通すE2Eテスト（要 Playwright + Chromium）
-// 使い方: node tests/e2e.js [スクリーンショット出力先]
+// ブラウザで1プレイを最後まで通すE2Eテスト（要 Playwright + Chromium）。サーバーは使わない。
+//  - 静的ホスティングに置いた状態（Playwright のリクエスト横取りで index.html 1ファイルだけを返す）
+//  - index.html をファイルとして直接開いた状態（file://）
+//  - サンドボックス化された iframe に埋め込んだ状態
+// 使い方: npm run build してから node tests/e2e.js [スクリーンショット出力先]
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -8,27 +11,37 @@ const assert = require('assert/strict');
 
 const OUT = process.argv[2] || path.join(os.tmpdir(), 'yukkuri-e2e');
 fs.mkdirSync(OUT, { recursive: true });
-const { createServer } = require('../scripts/serve.js');
-
-function serve() {
-  return new Promise((resolve) => { const srv = createServer().listen(0, () => resolve(srv)); });
-}
+const GAME = path.join(__dirname, '..', 'index.html');
+const SITE = 'https://yukkuri-game.test/';
 
 (async () => {
-  const srv = await serve();
-  const base = `http://localhost:${srv.address().port}/`;
+  const base = SITE;
   const browser = await chromium.launch();
   const errors = [];
   const watch = (p, tag) => {
     p.on('pageerror', (e) => errors.push(`[${tag}] ${e.message}`));
     p.on('console', (m) => { if (m.type() === 'error') errors.push(`[${tag}] console: ${m.text()}`); });
   };
+  // 静的ホスティングを再現：index.html 以外を読みに行ったら失敗扱い。ゲームは外部と通信しない
+  const host = async (c) => {
+    await c.route(SITE + '**', (r) => {
+      const p = new URL(r.request().url()).pathname;
+      if (p === '/' || p === '/index.html') return r.fulfill({ path: GAME, contentType: 'text/html; charset=utf-8' });
+      errors.push('index.html 以外のファイルを読み込もうとした: ' + p);
+      return r.fulfill({ status: 404, body: '' });
+    });
+    await c.route(/twitter\.com|x\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' }));
+    c.on('request', (r) => {
+      const u = r.url();
+      if (!/^(data|blob|about|file):/.test(u) && !u.startsWith(SITE) && !u.startsWith('https://embed.test/') && !/twitter\.com|x\.com/.test(u)) errors.push('想定外の通信: ' + u);
+    });
+  };
   const shot = (p, name, full) => p.screenshot({ path: path.join(OUT, name + '.png'), fullPage: !!full });
   const step = (s) => console.log('・' + s);
 
   // ===== PC：お題1を「工夫した編集」で最後まで =====
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
-  await ctx.route(/twitter\.com|x\.com/, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: 'ok' }));
+  await host(ctx);
   const page = await ctx.newPage();
   watch(page, 'pc');
   await page.goto(base);
@@ -92,7 +105,7 @@ function serve() {
   assert.equal(xurl.pathname, '/intent/tweet');
   assert.match(xurl.searchParams.get('text'), /ゆっくり編集地獄/);
   const link = xurl.searchParams.get('url');
-  assert.match(link, /\?r=[A-Za-z0-9_-]+$/);
+  assert.ok(link.startsWith(SITE + '?r='), '公開URLを基準にした再現リンク: ' + link);
   await pop.close();
   step('チャンネル名 → 画像保存 → Xの投稿画面（再現リンク付き）');
 
@@ -150,6 +163,7 @@ function serve() {
 
   // ===== スマホ：お題3を地獄編集 =====
   const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await host(mctx);
   const m = await mctx.newPage();
   watch(m, 'mobile');
   await m.goto(base);
@@ -181,8 +195,79 @@ function serve() {
   assert.ok(overflow <= 1, '横スクロールが発生しない: ' + overflow);
   step('スマホ幅：タップ操作で地獄編集 → 「効果音の暴力」');
 
+  // ===== サーバーなし：index.html をファイルとして直接開く =====
+  const fctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
+  await host(fctx);
+  await fctx.addInitScript(() => {
+    window.__copied = null;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } } });
+  });
+  const f = await fctx.newPage();
+  watch(f, 'file');
+  await f.goto('file://' + GAME);
+  await f.click('#btn-start');
+  await f.click('.theme-card >> nth=1');
+  await f.click('#btn-go');
+  const fpick = async (cell, chip) => { await f.click(`[data-k="${cell}"]`); await f.click(`[data-k="${chip}"]`); };
+  await fpick('s0', 'sub-0'); await fpick('f1', 'fx-bigzoom'); await fpick('a1', 'se-don');
+  await f.click('[data-k="v2"]'); await f.click('#btn-cut');
+  await fpick('f3', 'fx-mono'); await fpick('f4', 'fx-mono'); await fpick('s4', 'sub-1');
+  await f.click('#btn-export');
+  await f.click('#btn-skip');
+  await f.waitForSelector('#scr-result.is-active');
+  await f.waitForTimeout(1400);
+  const ftotal = +(await f.textContent('#res-total'));
+  assert.match(await f.textContent('#btn-copy'), /再現コード/, '公開URLがないときは再現コードで共有');
+  await f.click('#btn-copy');
+  await f.waitForFunction(() => window.__copied);
+  const code = await f.evaluate(() => window.__copied);
+  assert.match(code, /^[A-Za-z0-9_-]+$/);
+  const [fdl] = await Promise.all([f.waitForEvent('download'), f.click('#btn-save')]);
+  assert.match(fdl.suggestedFilename(), /\.png$/);
+  const [fpop] = await Promise.all([f.waitForEvent('popup'), f.click('#btn-x')]);
+  assert.equal(new URL(fpop.url()).searchParams.get('url'), null, 'ファイル直開きではリンクを付けない');
+  await fpop.close();
+  await shot(f, '30-file-result');
+  step(`file:// で直接開いて1プレイ（${ftotal}点）→ 画像保存・X投稿・再現コードのコピー`);
+  await f.click('#btn-home');
+  await f.click('summary:has-text("再現コード")');
+  await f.fill('#inp-code', code);
+  await f.click('#btn-code');
+  await f.waitForSelector('#scr-shared.is-active');
+  await f.click('#btn-shared-play');
+  await f.click('#btn-skip');
+  await f.waitForSelector('#scr-result.is-active');
+  await f.waitForTimeout(1300);
+  assert.equal(+(await f.textContent('#res-total')), ftotal, '再現コードで同じ点数になる');
+  await f.click('#btn-home');
+  await f.fill('#inp-code', 'でたらめ');
+  await f.click('#btn-code');
+  assert.match(await f.textContent('#toast'), /読み取れません/);
+  step('再現コードを貼り付け → 同じ編集を再生・同じ点数（不正なコードは弾く）');
+
+  // ===== HTMLの中身をサンドボックス iframe に直接流し込む（プレビュー表示などを想定。保存領域もURLもない最も厳しい環境） =====
+  const ectx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
+  await host(ectx);
+  const srcdoc = fs.readFileSync(GAME, 'utf8').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  await ectx.route('https://embed.test/', (r) => r.fulfill({ contentType: 'text/html; charset=utf-8', body: `<!doctype html><iframe sandbox="allow-scripts" srcdoc="${srcdoc}" style="width:1060px;height:860px;border:0"></iframe>` }));
+  const e = await ectx.newPage();
+  watch(e, 'embed');
+  await e.goto('https://embed.test/');
+  const fr = e.frameLocator('iframe');
+  await fr.locator('#btn-start').click();
+  await fr.locator('.theme-card >> nth=3').click();
+  await fr.locator('#btn-go').click();
+  await fr.locator('[data-k="f2"]').click(); await fr.locator('[data-k="fx-slow"]').click();
+  await fr.locator('[data-k="s5"]').click(); await fr.locator('[data-k="sub-5"]').click();
+  await fr.locator('#btn-export').click();
+  await fr.locator('#btn-skip').click();
+  await fr.locator('#scr-result.is-active').waitFor();
+  assert.match(await fr.locator('#btn-copy').textContent(), /再現コード/);
+  await e.waitForTimeout(1200);
+  await shot(e, '31-embed-result');
+  step('サンドボックス iframe に中身を流し込んでも1プレイ（保存領域なし・公開URLなし → 再現コード）');
+
   await browser.close();
-  srv.close();
   if (errors.length) { console.error('ページエラー:\n' + errors.join('\n')); process.exit(1); }
   console.log('E2E OK（スクリーンショット: ' + OUT + '）');
 })().catch((e) => { console.error(e); process.exit(1); });
